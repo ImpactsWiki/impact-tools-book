@@ -307,14 +307,14 @@ def IM_app(matdata,imat,localdatabool=False):
                     userinfostr = userinfostr + '\n Using Hugoniot for reshock and release.'
                 else:
                     userinfostr = userinfostr + '\n Using Mie-Grueneisen model for reshock and release.'
-                winfo.value = 'Updated plot, impact vel (km/s)='+IM.ClStr(wvel)+userinfostr
+                winfo.value = 'Updated plot, impact vel (km/s)='+IM.ClStr(wvel)+userinfostr+' https://impactswiki.net/impact-tools-book/ https://github.com/ImpactsWiki/impedance-match-app'
                 #plt.show()
             return fig
         else:
             winfo.value = 'No plot. Impact velocity <= 0'
 
     out=pn.bind(plot,wvel=wvel)
-    return pn.Row(column1,out,width=1000)
+    return pn.Row(column1,out,width=1200)
 
 ## this function creates a panel app that can be run as a standalone app in a web browser using
 ## myapp = IM_app(matdata,imat)
