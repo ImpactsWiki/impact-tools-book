@@ -1,0 +1,21 @@
+# Table of contents
+# Learn more at https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: intro
+parts:
+  - caption: Impedance Match Tool
+    chapters:
+    - file: im/run_IM_app
+    - file: im/user-play-space
+    - file: im/manual
+    - file: im/materials
+    - file: im/reproducibility
+  - caption: Other Tools
+    chapters:
+    - file: crater-scaling
+    - file: peak-pressure
+    - file: environmental-effects
+    - file: disruption
+    - file: other-tools
+    - file: references
