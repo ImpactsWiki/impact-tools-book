@@ -15,6 +15,10 @@ kernelspec:
 
 # IM Tool User Manual
 
+This is a shock impedance matching calculator for impact of one material onto 1 to 3 layers of materials.
+
+The tool includes the ability to plot data from the online Shock Wave Database at http://www.ihed.ras.ru/rusbank/ ({cite}`Levashov2004`). 
+
 ## Quick Start
 Select 2, 3, or 4 materials.<br>
 Enter impact velocity (hit return or the up/down arrows).<br>
