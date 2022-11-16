@@ -267,6 +267,7 @@ def IM_app(webappbool=False):
                     else:
                         # something wrong with mat3 Mie Grueneisn model
                         userinfostr = userinfostr + '<br> ERROR WITH MIE-GRUENEISEN MODEL FOR MAT 3. Use Hugoniot for reshock/release.'
+                        id4=[] # skip 4th material if there is a problem with mat3
                 if len(id4)>0:
                     # optional fourth material included
                     # plot mat4 principal Hugoniot
