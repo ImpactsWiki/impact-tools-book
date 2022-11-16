@@ -565,6 +565,7 @@ class Material:
             Input: EOS_Point object
             Optional boolean to use Hugoniot for the isentrope.
         """
+        MGIsuccess=True
         #print('Making isentrope')
         #Must create Hugoniot first
         if useHugoniotbool:
@@ -575,6 +576,11 @@ class Material:
             self.isen.uparr2 = self.hug.uparr
             self.isen.garr = self.hug.garr 
             return
+        #print(pstart.p, max(self.hug.parr))
+        if pstart.p >= max(self.hug.parr):
+            MGIsuccess=False
+            print('MakeMGIsentrope ERROR: pstart > max Hugoniot pressure')
+            return MGIsuccess
         istart  = np.where(self.hug.parr > pstart.p)[0][0]  # ASSUMES THAT THE VOLUME ARRAY DECREASES WITH INCREASING INDEX; Pressure increases with increasing index
         #print('ISTART=',istart,' Pstart=',pstart.p)
         self.isen.parr = np.zeros(len(self.hug.varr))
@@ -624,11 +630,8 @@ class Material:
                 else:  
                     self.isen.parr[i] = (self.hug.parr[i]-(self.hug.earr[i]-pstart.e+pstart.p*dv/2.)*(self.hug.garr[i]/self.hug.varr[i])) / (1.-dv*self.hug.garr[i]/self.hug.varr[i]/2.)
                     self.isen.earr[i] = pstart.e-(pstart.p+self.isen.parr[i])*dv/2.
-                    if (-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i])) > 0:
-                        self.isen.uparr[i]= pstart.up-(pstart.p-self.isen.parr[i])/np.sqrt(-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i]))
-                        #self.isen.uparr2[i]= pstart.up-(pstart.p-self.isen.parr[i])/np.sqrt(-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i]))
-                    else:
-                        return
+                    self.isen.uparr[i]= pstart.up-(pstart.p-self.isen.parr[i])/np.sqrt(-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i]))
+                    #self.isen.uparr2[i]= pstart.up-(pstart.p-self.isen.parr[i])/np.sqrt(-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i]))
             else:
                 dv = -(self.isen.varr[i]-self.isen.varr[i-1])
                 self.isen.parr[i] = (self.hug.parr[i]-(self.hug.earr[i]-self.isen.earr[i-1]+self.isen.parr[i-1]*dv/2.)*(self.hug.garr[i]/self.hug.varr[i])) / (1.-dv*self.hug.garr[i]/self.hug.varr[i]/2.)
@@ -636,16 +639,23 @@ class Material:
                 # these two equations for Uparr are identical along an isentrope
                 if (-(self.isen.parr[i-1]-self.isen.parr[i])/(self.isen.varr[i-1]-self.isen.varr[i])) > 0:
                     self.isen.uparr[i]= self.isen.uparr[i-1]-(self.isen.parr[i-1]-self.isen.parr[i])/np.sqrt(-(self.isen.parr[i-1]-self.isen.parr[i])/(self.isen.varr[i-1]-self.isen.varr[i]))
-                else:
-                    return
                     #self.isen.uparr2[i]= self.isen.uparr2[i-1]+np.sqrt(-(self.isen.parr[i-1]-self.isen.parr[i])*(self.isen.varr[i-1]-self.isen.varr[i]))
+                else:
+                    #MG model is failing
+                    self.isen.parr[i::] = np.nan
+                    self.isen.earr[i::] = np.nan
+                    self.isen.uparr[i::]= np.nan
+                    self.isen.uparr2[i::]= np.nan
+                    return MGIsuccess
             #print(i,dv,self.isen.parr[i]/1.e9,self.isen.uparr[i]/1.e3,self.isen.earr[i])
+        return MGIsuccess
     def MakeReshockHug(self,pstart,useHugoniotbool=False):
         """ Calculate Mie-Grueneisen reshock Hugoniot from pstart on the principal Hugoniot.
             Usage: MakeReshockHug(self,pstart,useHugoniotbool=False):
             Uses the same volume and gamma arrays as in the principal Hugoniot.
             Input: Pressure in Pa.
         """
+        #MGRsuccess=True
         if useHugoniotbool:
             self.reshock.parr = self.hug.parr
             self.reshock.varr = self.hug.varr
@@ -657,9 +667,10 @@ class Material:
             self.reshock.uparr[ind]=np.nan
             self.reshock.parr[ind]=np.nan
             self.reshock.earr[ind]=np.nan
-            return
+            return #MGRsuccess
         #print('Making reshock Hugoniot from P=',pstart.p/1.e9,' GPa')
-        ind  = np.where(self.hug.parr > pstart.p)[0]  # ASSUMES THAT THE VOLUME ARRAY DECREASES WITH INCREASING INDEX; Pressure increases with increasing index
+        # ASSUMES THAT THE VOLUME ARRAY DECREASES WITH INCREASING INDEX; Pressure increases with increasing index
+        ind  = np.where((self.hug.parr > pstart.p))[0]
         #Must create Hugoniot first
         self.reshock.parr = np.zeros(len(self.hug.parr))
         self.reshock.varr = self.hug.varr 
@@ -671,12 +682,32 @@ class Material:
         dv = pstart.v-self.reshock.varr[ind]
         self.reshock.parr[ind] = (self.hug.parr[ind]+(pstart.p-self.hug.parr[ind])*(self.v0-self.reshock.varr[ind])*(self.reshock.garr[ind]/self.reshock.varr[ind]/2))/(1-self.reshock.garr[ind]/self.reshock.varr[ind]/2*(pstart.v-self.reshock.varr[ind]))
         self.reshock.earr[ind] = pstart.e+0.5*(self.reshock.parr[ind]+pstart.p)*dv
-        self.reshock.uparr[ind] = pstart.up-np.sqrt((self.reshock.parr[ind]-pstart.p)*(pstart.v-self.reshock.varr[ind]))
-        self.reshock.uparr2[ind] = pstart.up+np.sqrt((self.reshock.parr[ind]-pstart.p)*(pstart.v-self.reshock.varr[ind]))
+        # check for bad points
+        ind2 = np.where((self.reshock.parr[ind]-pstart.p)*(pstart.v-self.reshock.varr[ind]) > 0)[0]
+        self.reshock.uparr[ind[ind2]] = pstart.up-np.sqrt((self.reshock.parr[ind[ind2]]-pstart.p)*(pstart.v-self.reshock.varr[ind[ind2]]))
+        self.reshock.uparr2[ind[ind2]] = pstart.up+np.sqrt((self.reshock.parr[ind[ind2]]-pstart.p)*(pstart.v-self.reshock.varr[ind[ind2]]))
+        ind2 = np.where((self.reshock.parr[ind]-pstart.p)*(pstart.v-self.reshock.varr[ind]) <= 0)[0]
+        if len(ind2) > 0:
+            # MG model is failing
+            self.reshock.parr[ind[ind2]] = np.nan
+            self.reshock.earr[ind[ind2]] = np.nan
+            self.reshock.uparr[ind[ind2]]= np.nan
+            self.reshock.uparr2[ind[ind2]]= np.nan 
         ind  = np.where(self.reshock.parr < pstart.p)[0]  # ASSUMES THAT THE VOLUME ARRAY DECREASES WITH INCREASING INDEX; Pressure increases with increasing index
-        self.reshock.uparr[ind]=np.nan
-        self.reshock.parr[ind]=np.nan
-        self.reshock.earr[ind]=np.nan
+        if len(ind) > 0:
+            self.reshock.uparr[ind]=np.nan
+            self.reshock.uparr2[ind]=np.nan
+            self.reshock.parr[ind]=np.nan
+            self.reshock.earr[ind]=np.nan
+        # check for reshock Hugoniot rollover
+        hugshift = np.roll(self.reshock.parr,1)
+        ind = np.where((self.reshock.parr-hugshift)<0)[0]
+        if len(ind)>0:
+            self.reshock.uparr[ind]=np.nan
+            self.reshock.uparr2[ind]=np.nan
+            self.reshock.parr[ind]=np.nan
+            self.reshock.earr[ind]=np.nan
+        #return MGIsuccess
     def PlotCurves(self,pstart,savebool=False,fname=''):
         """ Plot principal Hugoniot and isentropes and reshock Hugoniot from pstart.
             Usage: PlotCurves(self,pstart,savebool=False,fname=''):
@@ -701,7 +732,8 @@ class Material:
         self.im1.p=pstart
         self.im1.v=1/np.interp(pstart,self.hug.parr,1/self.hug.varr)
         self.im1.e=np.interp(pstart,self.hug.parr,self.hug.earr)
-        self.MakeMGIsentrope(self.im1)
+        MGIsuccess = self.MakeMGIsentrope(self.im1)
+        #print('MGI success flag = ',MGIsuccess)
         self.MakeReshockHug(self.im1)
         rhomax = np.interp(pstart*3,self.hug.parr,1/self.hug.varr)/1.e3
         rhomin = 0.8*(self.rho0/1.e3)
@@ -709,7 +741,8 @@ class Material:
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2,2)
         st = fig.suptitle(r' '+self.name+'\n'+paramstring)
         ax1.plot(1/self.hug.varr/1.e3,self.hug.parr/1.e9,label='Hugoniot')
-        ax1.plot(1/self.isen.varr/1.e3,self.isen.parr/1.e9,label='Isentrope')
+        if MGIsuccess: 
+            ax1.plot(1/self.isen.varr/1.e3,self.isen.parr/1.e9,label='Isentrope')
         ax1.plot(1/self.reshock.varr/1.e3,self.reshock.parr/1.e9,'--',label='Reshock Hug.')
         ax1.set_xlabel('Density (g/cm$^3$)')
         ax1.set_ylabel('Pressure (GPa)')
@@ -719,7 +752,8 @@ class Material:
         
         ind=np.where(self.hug.parr < 2*pstart)[0]
         ax2.plot(1/self.hug.varr[ind]/1.e3,self.hug.earr[ind]/1.e6,label='Hugoniot')
-        ax2.plot(1/self.isen.varr[ind]/1.e3,self.isen.earr[ind]/1.e6,label='Isentrope')
+        if MGIsuccess: 
+            ax2.plot(1/self.isen.varr[ind]/1.e3,self.isen.earr[ind]/1.e6,label='Isentrope')
         ax2.plot(1/self.reshock.varr[ind]/1.e3,self.reshock.earr[ind]/1.e6,'--',label='Reshock Hug.')
         ax2.set_xlabel('Density (g/cm$^3$)')
         ax2.set_xlim([rhomin,rhomax])
@@ -737,7 +771,8 @@ class Material:
         ind=np.where(self.hug.parr < 3*pstart)[0]
         up0 = np.interp(pstart,self.hug.parr,self.hug.uparr)
         ax4.plot(self.hug.uparr/1.e3,self.hug.parr/1.e9,label='Hugoniot')
-        ax4.plot(up0/1.e3+self.isen.uparr/1.e3,self.isen.parr/1.e9,label='Isentrope')
+        if MGIsuccess: 
+            ax4.plot(up0/1.e3+self.isen.uparr/1.e3,self.isen.parr/1.e9,label='Isentrope')
         #ax4.plot(up0/1.e3+self.isen.uparr2/1.e3,self.isen.parr/1.e9,'--',label='isen2')
         ax4.plot(up0/1.e3+self.reshock.uparr/1.e3,self.reshock.parr/1.e9,label='Reshock A')
         ax4.plot(up0/1.e3+self.reshock.uparr2/1.e3,self.reshock.parr/1.e9,'--',label='Reshock B')
@@ -754,7 +789,7 @@ class Material:
             if fname == '':
                 fname='EOS-plots-'+self.name+'-v'+__version__+'.pdf'
             fig.savefig(fname,dpi=300)
-        plt.show()
+        #plt.show()
         plt.close(fig)
         return fig
 
