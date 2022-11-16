@@ -628,7 +628,7 @@ class Material:
                         self.isen.uparr[i]= pstart.up-(pstart.p-self.isen.parr[i])/np.sqrt(-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i]))
                         #self.isen.uparr2[i]= pstart.up-(pstart.p-self.isen.parr[i])/np.sqrt(-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i]))
                     else:
-                        continue
+                        return
             else:
                 dv = -(self.isen.varr[i]-self.isen.varr[i-1])
                 self.isen.parr[i] = (self.hug.parr[i]-(self.hug.earr[i]-self.isen.earr[i-1]+self.isen.parr[i-1]*dv/2.)*(self.hug.garr[i]/self.hug.varr[i])) / (1.-dv*self.hug.garr[i]/self.hug.varr[i]/2.)
