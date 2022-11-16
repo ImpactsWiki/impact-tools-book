@@ -351,7 +351,7 @@ def IM_app(webappbool=False):
 
     wplot=pn.panel(plot, sizing_mode='scale_width') # panel to display the impedance match plot
 
-    wbottomtext = pn.widgets.StaticText(value='<b>Manual</b> <a href="https://impactswiki.net/impact-tools-book/">https://impactswiki.net/impact-tools-book/</a><br><b>Repo</b> <a href="https://github.com/ImpactsWiki/impedance-match-app">https://github.com/ImpactsWiki/impedance-match-app</a><br>If crashing or unresponsive, use Hugoniot for release and reshock.')
+    wbottomtext = pn.widgets.StaticText(value='<b>Manual</b> <a href="https://impactswiki.net/impact-tools-book/">https://impactswiki.net/impact-tools-book/</a><br><b>Repo</b> <a href="https://github.com/ImpactsWiki/impedance-match-app">https://github.com/ImpactsWiki/impedance-match-app</a><br>If crashing or unresponsive, use Hugoniot for release and reshock. Common problems with large impedance mismatch materials and MG models.')
     
     # Widgets below the main IM Tool
     # display current matdata DataFrame
