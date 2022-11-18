@@ -2,5 +2,6 @@ Stewart Group Impact Tools Jupyter Book contribution to the Planetary Impacts Wi
 
 The Jupyter Book is available at https://impactswiki.net/impact-tools-book/
 
-Updated 11/13/2022 STSM
+Updated 11/18/2022 STSM
+
 
