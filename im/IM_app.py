@@ -19,17 +19,13 @@ def IM_app(webappbool=False):
         v1.0.1 - 11/13/22 STS code cleanup and documentation
         v1.0.2 - 11/14/22 STS framing the app
         v1.0.3 - 11/15/22 STS auto-resize the plot; added panel to add a new material
-        v1.1.0 - 11/17/22 STS rewrote the IM match into a function and cleaned up error messaging
+        v1.1.0 - 11/19/22 STS rewrote the IM match into a function and cleaned up error messaging
     """
     #========================================================
     # WIDGET SETTINGS & CUSTOMIZATIONS
     # set default plot limits
     upmaxfactor = 1.2 # maximum x value is this factor * impact velocity
     pmaxfactor = 1.5 # maximum y value is this factor * first impact pressure
-    # IM Hugoniot/release/reshock arrays
-    # big factor in case mix of low and high impedance materials
-    uparr_factor = 5. # make up arrays up to impvel_factor*vel  -- needs to be big for large impedance mismatch cases
-    uparr_length = 5000 # number of points (resolution) of the up array
     # widget splash image and default save file name
     default_image_filename = 'Impact-solution.pdf'
     #
@@ -75,7 +71,7 @@ def IM_app(webappbool=False):
         options=all_materials,
     )
     wmat_ihed=pn.widgets.Select(
-        name='Select material to plot (not working yet)',
+        name='Select material to plot',
         options=all_materials,
     )
 
@@ -102,7 +98,7 @@ def IM_app(webappbool=False):
     # group to save PDF file when running in a Jupyter notebook ; does not work in Heroku web app
     winstruct = pn.widgets.StaticText(value='Enter file name with extension (.pdf, .png)')
     winstruct2 = pn.widgets.StaticText(value='Saves to local dir (online in CoLab)')
-    wbutton = pn.widgets.Button(name='Save Plot', button_type='primary',width=100)
+    wbutton = pn.widgets.Button(name='Save IM Plot', button_type='primary',width=100)
     wfilename = pn.widgets.TextInput(value=default_image_filename)
     wsaveimage = pn.Column(winstruct,winstruct2,wfilename,wbutton,width=menuwidth)
     #end group
@@ -120,7 +116,11 @@ def IM_app(webappbool=False):
         # the code below accesses the widget values directly
         vel = vel*1.e3 # put impact velocity in m/s
         userinfostr='' # variable to hold notes for the user
+        fig = plt.figure() # initialize the figure object
+        plt.close(fig)
         if vel <= 0:
+            fig = plt.figure() # initialize the figure object
+            plt.close(fig)
             winfo.value = '\nNO PLOT. Impact velocity <= 0'
         else:
             # valid impact velocity
@@ -129,6 +129,7 @@ def IM_app(webappbool=False):
             string2=''
             string3=''
             string4=''
+            string_IM_res=''
             # initialize index for material layer
             id1=[]
             id2=[]
@@ -136,19 +137,32 @@ def IM_app(webappbool=False):
             id4=[]
 
             #---------------------------------------------------------------------------
-            # INITIALIZE MATERIALS FROM DROPDOWN MENUS
-            # initialize common up array for all the curves used in IM solution
-            up = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
+            # old way: initialize common up array for all the curves used in IM solution
+            # new way: each material can have it's own up array. intersections are solved for numerically with
+            # each material up array. Allows for expansion to other modular EOS functions.
+            #
+            # generic settings -- increase for MG model and low density materials if needed below
+            uparr_factor = 2. # make up arrays up to impvel_factor*vel 
+            uparr_length = 2000 # number of points (resolution) of the up array
+            upgeneral = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
 
+            # INITIALIZE MATERIALS FROM DROPDOWN MENUS
             # find index and initialize Hugoniot for each material layer (2 to 3 materials needed)
             id1 = np.where(matdata.loc[:,'Material'].values == wmat1.value)[0]
             if len(id1)>0: # material 1 has been set
                 mat1 = IM.Material()
                 mat1.DefineParamsID(wmat1.value,matdata,imat)
-                mat1.MakeHugoniot(up)
+                if wusemgmodel.value and (mat1.rho0 < 5000):
+                    # if using MG model, increase the length of the particle velocity array
+                    uparr_factor = 5. # make up arrays up to impvel_factor*vel 
+                    uparr_length = 5000. # number of points (resolution) of the up array
+                    upmat1 = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
+                else:
+                    upmat1 = np.copy(upgeneral) # each material is an independent set of arrays
+                mat1.MakeHugoniot(upmat1)
                 ind = np.where(mat1.hug.parr < 0)[0]
                 if len(ind)>0:
-                    winfo.value = 'No plot. Material 1 Hugoniot has negative values for requested calculation. Check material parameters. Max value in particle velocity array (km/s)='+str(max(up/1.e3))
+                    winfo.value = 'No plot. Material 1 Hugoniot has negative values for requested calculation. Check material parameters. Max value in particle velocity array (km/s)='+str(max(upmat1/1.e3))
                     return                   
                 if (wshowdata.value) and (mat1.ihed.id > -1):
                     mat1.GetIHED(uselocalbool=wuselocaldata.value)
@@ -157,10 +171,17 @@ def IM_app(webappbool=False):
             if len(id2)>0:
                 mat2 = IM.Material()
                 mat2.DefineParamsID(wmat2.value,matdata,imat)
-                mat2.MakeHugoniot(up)
+                if wusemgmodel.value and (mat2.rho0 < 5000):
+                    # if using MG model, increase the length of the particle velocity array
+                    uparr_factor = 5. # make up arrays up to impvel_factor*vel 
+                    uparr_length = 5000. # number of points (resolution) of the up array
+                    upmat2 = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
+                else:
+                    upmat2 = np.copy(upgeneral)
+                mat2.MakeHugoniot(upmat2)
                 ind = np.where(mat2.hug.parr < 0)[0]
                 if len(ind)>0:
-                    winfo.value = 'No plot. Material 2 Hugoniot has negative values for requested calculation. Check material parameters. Max value in particle velocity array (km/s)='+str(max(up/1.e3))
+                    winfo.value = 'No plot. Material 2 Hugoniot has negative values for requested calculation. Check material parameters. Max value in particle velocity array (km/s)='+str(max(upmat2/1.e3))
                     return                   
                 if wshowdata.value and (mat2.ihed.id > -1):
                     mat2.GetIHED(uselocalbool=wuselocaldata.value)
@@ -169,26 +190,45 @@ def IM_app(webappbool=False):
             if len(id3)>0:
                 mat3 = IM.Material()
                 mat3.DefineParamsID(wmat3.value,matdata,imat)
-                mat3.MakeHugoniot(up)
+                if wusemgmodel.value and (mat3.rho0 < 5000):
+                    # if using MG model, increase the length of the particle velocity array
+                    uparr_factor = 5. # make up arrays up to impvel_factor*vel 
+                    uparr_length = 5000. # number of points (resolution) of the up array
+                    upmat3 = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
+                else:
+                    upmat3 = np.copy(upgeneral)
+                mat3.MakeHugoniot(upmat3)
                 ind = np.where(mat3.hug.parr < 0)[0]
                 if len(ind)>0:
-                    winfo.value = 'No plot. Material 3 Hugoniot has negative values for requested calculation. Check material parameters. Max value in particle velocity array (km/s)='+str(max(up/1.e3))
+                    winfo.value = 'No plot. Material 3 Hugoniot has negative values for requested calculation. Check material parameters. Max value in particle velocity array (km/s)='+str(max(upmat3/1.e3))
                     return                   
                 if wshowdata.value and (mat3.ihed.id > -1):
                     mat3.GetIHED(uselocalbool=wuselocaldata.value)
 
             id4 = np.where(matdata.loc[:,'Material'].values == wmat4.value)[0]
             if len(id4)>0:
+                if len(id3) == 0:
+                    # missing material 3 so stop
+                    winfo.value = 'No plot. Missing material 3'
+                    return                   
                 mat4 = IM.Material()
                 mat4.DefineParamsID(wmat4.value,matdata,imat)
-                mat4.MakeHugoniot(up)
+                if wusemgmodel.value and (mat4.rho0 < 5000):
+                    # if using MG model, increase the length of the particle velocity array
+                    uparr_factor = 5. # make up arrays up to impvel_factor*vel 
+                    uparr_length = 5000. # number of points (resolution) of the up array
+                    upmat4 = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
+                else:
+                    upmat4 = np.copy(upgeneral)
+                mat4.MakeHugoniot(upmat4)
                 ind = np.where(mat4.hug.parr < 0)[0]
                 if len(ind)>0:
-                    winfo.value = 'No plot. Material 4 Hugoniot has negative values for requested calculation. Check material parameters. Max value in particle velocity array (km/s)='+str(max(up/1.e3))
+                    winfo.value = 'No plot. Material 4 Hugoniot has negative values for requested calculation. Check material parameters. Max value in particle velocity array (km/s)='+str(max(upmat4/1.e3))
                     return                   
                 if wshowdata.value and (mat4.ihed.id > -1):
                     mat4.GetIHED(uselocalbool=wuselocaldata.value)
 
+            del(upgeneral) # don't need it anymore
             # check that at least 2 materials have been defined
             if len(id1)==0 or len(id2)==0:
                 winfo.value = '\nNO PLOT. Need materials 1 and 2.'
@@ -201,29 +241,38 @@ def IM_app(webappbool=False):
                 # solve for first impedance match state mat1--> mat2 at vel
                 IM12_success = mat1.IM_match(mat2,vel=vel)
                 if not IM12_success:
-                    message_txt = '\nNO PLOT. Impedance match between mats 1 and 2 failed.'
+                    message_txt = '<p>NO PLOT. Impedance match between mats 1 and 2 failed.'
                     winfo.value = message_txt
                     return
-
+                string_IM_res = string_IM_res + '<p>'+mat1.name+' &#8594; '+mat2.name
+                string_IM_res = string_IM_res + '<p>&emsp;'+mat1.name+' '+str(mat1.im1)
+                string_IM_res = string_IM_res + '<p>&emsp;'+mat2.name+' '+str(mat2.im1)
+                
             if len(id3)>0:
                 # solve for second impedance match state mat2 -> mat3
-                IM23_success = mat2.IM_match(mat3,pstart=mat2.im1,usemgmodelbool=usemgmodel)
+                IM23_success = mat2.IM_match(mat3,pstart=mat2.im1,usemgmodelbool=usemgmodel,vel=vel)
                 if not IM12_success:
-                    message_txt = '\nNO PLOT. Impedance match between mats 2 and 3 failed.'
+                    message_txt = '<p>NO PLOT. Impedance match between mats 2 and 3 failed.'
                     if usemgmodel:
                         message_txt = message_txt+' Turn off Mie-Grueneisen model.'
                     winfo.value = message_txt
                     return
+                string_IM_res = string_IM_res + '<p>'+mat2.name+' &#8594; '+mat3.name
+                string_IM_res = string_IM_res + '<p>&emsp;'+mat2.name+' '+str(mat2.im2)
+                string_IM_res = string_IM_res + '<p>&emsp;'+mat3.name+' '+str(mat3.im1)
 
             if len(id4)>0:
                 # solve for third impedance match state mat3 -> mat4
-                IM34_success = mat3.IM_match(mat4,pstart=mat3.im1,usemgmodelbool=usemgmodel)
+                IM34_success = mat3.IM_match(mat4,pstart=mat3.im1,usemgmodelbool=usemgmodel,vel=vel)
                 if not IM34_success:
-                    message_txt = '\nNO PLOT. Impedance match between mats 3 and 24 failed.'
+                    message_txt = '<p>NO PLOT. Impedance match between mats 3 and 4 failed.'
                     if usemgmodel:
                         message_txt = message_txt+' Turn off Mie-Grueneisen model.'
                     winfo.value = message_txt
                     return
+                string_IM_res = string_IM_res + '<p>'+mat3.name+' &#8594; '+mat4.name
+                string_IM_res = string_IM_res + '<p>&emsp;'+mat3.name+' '+str(mat3.im2)
+                string_IM_res = string_IM_res + '<p>&emsp;'+mat4.name+' '+str(mat4.im1)
 
             #---------------------------------------------------------------------------
             # MAKE PLOT
@@ -234,11 +283,12 @@ def IM_app(webappbool=False):
             wbutton.on_click(on_button_clicked) # if the save button is clicked, save the figure to a file
 
             # plot flyer, target Hugoniots and IM point
-            plt.plot((vel-up)/1.e3,mat1.hug.parr/1.e9,label='Mat1 '+wmat1.value+' Hug.')
-            plt.plot(up/1.e3,mat2.hug.parr/1.e9,label='Mat2 '+wmat2.value+' Hug.')
+            plt.plot((vel-mat1.hug.uparr)/1.e3,mat1.hug.parr/1.e9,label='Mat1 '+wmat1.value+' Hug.')
+            plt.plot(mat2.hug.uparr/1.e3,mat2.hug.parr/1.e9,label='Mat2 '+wmat2.value+' Hug.')
             plt.plot(mat2.im1.up/1.e3,mat2.im1.p/1.e9,'D',color='black',label='IM Mat2')
-            string1 = wmat1.value+' impacts '+wmat2.value+' at '+str(vel/1.e3)+' km/s\nImp. Match Mat2: Up='+IM.ClStr(mat2.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat2.im1.p/1.e9)+' (GPa)'
-
+            #string1 = wmat1.value+' impacts '+wmat2.value+' at '+str(vel/1.e3)+' km/s\nImp. Match Mat2: Up='+IM.ClStr(mat2.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat2.im1.p/1.e9)+' (GPa)'
+            string1 = 'Shock Impedance Match Tool\nImpact velocity '+str(vel/1.e3)+' km/s'
+            
             if (wshowdata.value) and (mat1.ihed.id > -1):
                 indm1=np.where(mat1.ihed.marr == 1.)
                 if mat1.name == 'Ice':
@@ -253,7 +303,7 @@ def IM_app(webappbool=False):
             if len(id3)>0:
                 # optional third material included
                 # plot mat3 principal Hugoniot
-                plt.plot(up/1.e3,mat3.hug.parr/1.e9,label='Mat3 '+wmat3.value+' Hug.')
+                plt.plot(mat3.hug.uparr/1.e3,mat3.hug.parr/1.e9,label='Mat3 '+wmat3.value+' Hug.')
                 if wshowdata.value and (mat3.ihed.id > -1):
                     indm1=np.where(mat3.ihed.marr == 1.)
                     if mat3.name == 'Ice':
@@ -270,15 +320,16 @@ def IM_app(webappbool=False):
                     string3B = ' RELEASE'
                 plt.plot(mat3.im1.up/1.e3,mat3.im1.p/1.e9,'D',label='IM Mat3')
  
-                if usemgmodel:
-                    string3 = '\nImp. Match Mat3 (MG): Up='+IM.ClStr(mat3.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat3.im1.p/1.e9)+' (GPa)'+string3B
-                else:
-                    string3 = '\nImp. Match Mat3 (HUG): Up='+IM.ClStr(mat3.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat3.im1.p/1.e9)+' (GPa)'+string3B
+                string3=''
+                #if usemgmodel:
+                #    string3 = '\nImp. Match Mat3 (MG): Up='+IM.ClStr(mat3.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat3.im1.p/1.e9)+' (GPa)'+string3B
+                #else:
+                #    string3 = '\nImp. Match Mat3 (HUG): Up='+IM.ClStr(mat3.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat3.im1.p/1.e9)+' (GPa)'+string3B
                 
             if len(id4)>0:
                 # optional fourth material included
                 # plot mat4 principal Hugoniot
-                plt.plot(up/1.e3,mat4.hug.parr/1.e9,label='Mat4 '+wmat4.value+' Hug.')
+                plt.plot(mat4.hug.uparr/1.e3,mat4.hug.parr/1.e9,label='Mat4 '+wmat4.value+' Hug.')
                 if (wshowdata.value) and (mat4.ihed.id > -1):               
                     indm1=np.where(mat4.ihed.marr == 1.)
                     if mat4.name == 'Ice':
@@ -295,10 +346,11 @@ def IM_app(webappbool=False):
                     string4B = ' RELEASE'
                 plt.plot(mat4.im1.up/1.e3,mat4.im1.p/1.e9,'D',label='IM Mat4')
 
-                if usemgmodel:
-                    string4 = '\nImp. Match Mat4 (MG): Up='+IM.ClStr(mat4.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat4.im1.p/1.e9)+' (GPa)'+string4B
-                else:
-                    string4 = '\nImp. Match Mat4 (HUG): Up='+IM.ClStr(mat4.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat4.im1.p/1.e9)+' (GPa)'+string4B
+                string4=''
+                #if usemgmodel:
+                #    string4 = '\nImp. Match Mat4 (MG): Up='+IM.ClStr(mat4.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat4.im1.p/1.e9)+' (GPa)'+string4B
+                #else:
+                #    string4 = '\nImp. Match Mat4 (HUG): Up='+IM.ClStr(mat4.im1.up/1.e3)+' (km/s) P='+IM.ClStr(mat4.im1.p/1.e9)+' (GPa)'+string4B
 
             plt.title(string1+string2+string3+string4)            
             plt.legend(bbox_to_anchor=(1,1), loc="upper left") #bbox_to_anchor=(1.05, 1)
@@ -314,22 +366,22 @@ def IM_app(webappbool=False):
                 plt.xlim(0,upmaxfactor*vel/1.e3)
             plt.tight_layout()
             if usemgmodel:
-                userinfostr = userinfostr + '<br> Using Mie-Grueneisen model for reshock and release.'
+                userinfostr = userinfostr + '<p> Using Mie-Grueneisen model for reshock and release.'
             else:
-                userinfostr = userinfostr + '<br> Using Hugoniot for reshock and release.'
-            winfo.value = '\nImpact velocity (km/s)='+IM.ClStr(vel/1.e3)+userinfostr
+                userinfostr = userinfostr + '<p> Using Hugoniot for reshock and release.'
+            winfo.value = '<p>Impact velocity '+IM.ClStr(vel/1.e3)+' (km/s)'+string_IM_res+userinfostr+'<p>IM Tool v'+IM.__version__
             plt.close(fig)
             return fig
 
     wplot=pn.panel(match_and_plot, sizing_mode='scale_width') # panel to display the impedance match plot
 
-    wbottomtext = pn.widgets.StaticText(value='<b>Manual</b> <a href="https://impactswiki.net/impact-tools-book/">https://impactswiki.net/impact-tools-book/</a><br><b>Repo</b> <a href="https://github.com/ImpactsWiki/impedance-match-app">https://github.com/ImpactsWiki/impedance-match-app</a><br>The application range of the Mie-Grueneisen model is limited; beware use at higher pressures with large impedance mismatch calculations.')
+    wbottomtext = pn.widgets.StaticText(value='<b>Manual</b> <a href="https://impactswiki.net/impact-tools-book/" target="_blank">https://impactswiki.net/impact-tools-book/</a><br><b>Repo</b> <a href="https://github.com/ImpactsWiki/impedance-match-app" target="_blank">https://github.com/ImpactsWiki/impedance-match-app</a><br><b>IHED Database</b> <a href="http://www.ihed.ras.ru/rusbank/" target="_blank">http://www.ihed.ras.ru/rusbank/</a><br>The application range of the Mie-Grueneisen model is limited; beware use at higher pressures with large impedance mismatch calculations.')
     
     # Widgets below the main IM Tool
     # display current matdata DataFrame
     wdf_widget = pn.widgets.Tabulator(matdata)
     # entry boxes for new material parameters
-    waddmattext = pn.widgets.StaticText(value='Enter values for new material in MKS. <a href="http://www.ihed.ras.ru/rusbank/substsearch.php" target="_blank">Search the IHED Database to find the material number</a>; enter -1 if not available. The substance ID number is given in the web page address when plotting the Hugoniot or displaying the data as plain text.<p> 2, 3, or 4 non-zero parameters define the form of the Hugoniot:<br>2=Linear: Us = c0 + s1*up<br>3=Quadratic: Us = c0 + s1*up + s2*up^2<br>4=Mod. Universal Liquid: Us = c0 + s1*up - c*up*exp(-d*up)<p>Mie-Grueneisen parameter: g(v) = g0*(v/v0)^q')
+    waddmattext = pn.widgets.StaticText(value='Enter values for new material in MKS. <a href="https://impactswiki.net/impact-tools-book/im/ihed-mats-all.html" target="_blank">Search the IHED Database to find the material number</a>; enter -1 if not available.<p> 2, 3, or 4 non-zero parameters define the form of the Hugoniot:<br>2=Linear: Us = c0 + s1*up<br>3=Quadratic: Us = c0 + s1*up + s2*up^2<br>4=Mod. Universal Liquid: Us = c0 + s1*up - c*up*exp(-d*up)<p>Mie-Grueneisen parameter: g(v) = g0*(v/v0)^q')
     if webappbool:
         waddmattext.value = 'Changes to materials database will be lost upon refreshing this web app. <a href="https://impactswiki.net/impact-tools-book/" target="_blank">Use the Jupyter Notebook version</a> to access a personal database.<p>'+waddmattext.value
     wnewname = pn.widgets.TextInput(name='New Material Name',value='Enter Name')
@@ -415,26 +467,81 @@ def IM_app(webappbool=False):
     #---------------------------
     # plot ihed pane
     @pn.depends(wmat_ihed)
-    def plot_ihed(mat_ihed=wmat_ihed):
-        #print('CLICKED BUTTON')
-        # somebody please tell me the better way to access these variables in a button function....
+    def plot_mat(mat_ihed=wmat_ihed):
+        # somebody please tell me the better way to access these variables in a function....
         global matdata,imat
         # load an empty new material parameter DataFrame
         # Columns must match the original materials-data.csv file
         idx = np.where(matdata.loc[:,'Material'].values == wmat_ihed.value)[0]
-        uptmp = np.arange(0,15000)
         matplot = IM.Material()
         matplot.DefineParamsID(wmat_ihed.value,matdata,imat)
-        matplot.MakeHugoniot(uptmp)
-        matplot.GetIHED(uselocalbool=wuselocaldata.value)
-        matplot.PlotIHED
+        upplot = np.arange(0,15000)
+        matplot.MakeHugoniot(upplot)
+        if matplot.ihed.id >0:
+            matplot.GetIHED(uselocalbool=wuselocaldata.value)
+            if matplot.ihed.d != 0:
+                lab_txt = 'IHED univeral liquid fit'
+            elif matplot.ihed.s2 != 0:
+                lab_txt = 'IHED quadratic fit'
+            else:
+                lab_txt = 'IHED linear fit'
+            ind = np.where(matplot.ihed.marr == 1.0)[0] # don't plot porous data 
+            if matplot.name == 'Ice':
+                ind = np.where(matplot.ihed.marr == 1.093)[0] # for some reason IHED did not use ice's actual density
+            if len(ind)>0:
+                up = matplot.ihed.uparr[ind]
+                us = matplot.ihed.usarr[ind]
+                if matplot.ihed.d==0:
+                    diff = us-(matplot.c0+matplot.s1*up+matplot.s2*up*up)
+                else:
+                    diff = us-(matplot.c0+matplot.s1*up-matplot.s2*up*np.exp(-matplot.d*up))
+            # remake uparr and Hugoniot to reach largest value in IHED database
+            if len(ind)>0:
+                upplot = np.arange(0,max(up))
+                matplot.MakeHugoniot(upplot)
 
-    wfigihed=pn.panel(plot_ihed, sizing_mode='scale_width') # panel to display the impedance match plot
+        paramstring = 'r$_0$='+IM.ClStr(matplot.rho0/1.e3)+' (g/cm$^3$), Us (km/s)='+IM.ClStr(matplot.c0/1.e3)+'+'+IM.ClStr(matplot.s1)+'up'
+        if (matplot.s2 != 0) and (matplot.d == 0): # s2 is s/m -> s/km
+            if matplot.s2<0:
+                paramstring += str(matplot.s2*1.e3)+'up$^2$'
+            if matplot.s2>0:
+                paramstring += '+'+str(matplot.s2*1.e3)+'up$^2$'
+        if (matplot.d != 0): # s2 is dimless and d is s/m -> s/km
+            if matplot.s2<0:
+                paramstring += IM.ClStr(matplot.s2)+'up exp(-'+str(matplot.d*1.e3)
+            if matplot.s2>0:
+                paramstring += '+'+IM.ClStr(matplot.s2)+'up exp(-'+str(matplot.d*1.e3)+'up)'
+    
+        fig = plt.figure() # initialize the figure object
+        labelstr=''
+        if matplot.d == 0:
+            if matplot.s2 ==0:
+                labelstr = 'Primary Linear Hugoniot fit'
+            else:
+                labelstr = 'Primary Quadratic Hugoniot fit'
+            plt.plot(upplot/1000.,(matplot.c0+matplot.s1*upplot+matplot.s2*upplot*upplot)/1000.,'--',label=labelstr)
+        else:
+            plt.plot(upplot/1000.,(matplot.c0+matplot.s1*upplot-matplot.s2*upplot*np.exp(-matplot.d*upplot))/1000.,'--',label='Primary UL Hugoniot fit')        
+        if (matplot.ihed.id >0) and (len(ind)>0): 
+            plt.scatter(up/1000.,us/1000.,label='IHED '+matplot.ihed.matname)
+        
+        #print('Primary Hugoniot parameters c0,s1,s2(or c),d=',matplot.c0,matplot.s1,matplot.s2,matplot.d)
+        plt.xlabel('Particle Velocity (km/s)')
+        plt.ylabel('Shock Velocity (km/s)')
+        if matplot.ihed.id>0:
+            plt.title('Material = '+matplot.name+', IHED ID '+str(matplot.ihed.id)+' '+matplot.ihed.matname+'\n'+paramstring)
+        else:
+            plt.title('Material = '+matplot.name+', NO IHED ID \n'+paramstring)
+        plt.legend()
+        plt.close(fig)
+        return fig
+
+    wfig_mat=pn.panel(plot_mat, sizing_mode='scale_width') # panel to display the impedance match plot
 
     #wplotihedbutton = pn.widgets.Button(name='Select material to plot', button_type='primary')
     #wplotihedbutton.on_click(on_plotihedbutton_clicked)
     
-    wplotihed = pn.Column(wmat_ihed,wfigihed,width=300)
+    wplot_mat = pn.Column(wmat_ihed,wfig_mat,sizing_mode='scale_width')
     
     # author into at bottom of app
     wauthortext = pn.widgets.StaticText(value='v1.1.0 &#169; 2022 S. T. Stewart, Planetary Impacts Community Wiki')
@@ -447,10 +554,10 @@ def IM_app(webappbool=False):
     waddmat_pane = pn.Card(wnewparams, title="Add or Remove Material", sizing_mode='scale_width', collapsed=True)
 
     # ability to plot Hugoniot expressions with IHED data coming.....
-    #wplotihed_pane = pn.Card(wplotihed, title="Plot IHED", sizing_mode='scale_width', collapsed=True)    
-    #wcombo_pane = pn.Column(wtop_pane,wmain_pane,wbottomtext,wmatdata_pane,waddmat_pane,wplotihed_pane,pn.layout.Divider(),wauthortext,width=1200,sizing_mode="scale_width")
+    wplot_mat_pane = pn.Card(wplot_mat, title="Plot Material", sizing_mode='scale_width', collapsed=True)    
+    wcombo_pane = pn.Column(wtop_pane,wmain_pane,wbottomtext,wmatdata_pane,waddmat_pane,wplot_mat_pane,pn.layout.Divider(),wauthortext,width=1200,sizing_mode="scale_width")
     # final combined app 
-    wcombo_pane = pn.Column(wtop_pane,wmain_pane,wbottomtext,wmatdata_pane,waddmat_pane,pn.layout.Divider(),wauthortext,width=1200,sizing_mode="scale_width")
+    #wcombo_pane = pn.Column(wtop_pane,wmain_pane,wbottomtext,wmatdata_pane,waddmat_pane,pn.layout.Divider(),wauthortext,width=1200,sizing_mode="scale_width")
     
     return wcombo_pane
 
@@ -459,4 +566,3 @@ def IM_app(webappbool=False):
 ## use IM_app.servable() to run the widget alone in a web browser using command line: bokeh serve --show filename.ipynb
 ## see https://panel.holoviz.org/index.html
 ### END of IM_app.py ###
-    

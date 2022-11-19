@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import os
 #
-__version__ = '1.1.0' # November 18, 2022 Added IM_match function; debugging and error messaging.
+__version__ = '1.1.0' # November 19, 2022 Added IM_match function; lots of debugging and error messaging.
 #__version__ = '1.0.4' # November 14, 2022 Debugging.
 #__version__ = '1.0.3' # November 13, 2022 Fixed symmetric impact bug; code cleanup and documentation.
 #__version__ = '1.0.2' # November 12, 2022 Added Universal Liquid Hugoniot
@@ -65,7 +65,14 @@ class EOS_Point:
         self.e   = 0. # J/kg
         self.up  = 0. # m/s
     def __str__(self):
-        return 'P v E up = '+str(self.p/1.e9)+', '+str(self.v)+', '+str(self.e/1.e6)+', '+str(self.up)
+        # print friendly output for EOS point to display to the user
+        output_str = 'P = '+ClStr(self.p/1.e9)+' (GPa), u<sub>p</sub> = '+ClStr(self.up/1.e3)+' (km/s)'
+        output_str = output_str + ', E = '+ClStr(self.e/1.e6)+' (MJ/kg)'
+        if self.v > 0:
+            output_str = output_str +', &#961; = '+ClStr(1/self.v/1.e3)+ ' (g/cm<sup>3</sup>)'
+        else:
+            output_str = output_str +', V = '+str(self.v)+ ' (m<sup>3</sup>/kg)'
+        return output_str
 
 class IHED:
     """Class for holding IHED or user-supplied shock wave data."""
@@ -501,7 +508,7 @@ class Material:
         # plot main Hugoniot fit from the materials database csv file
         #uptmp = np.arange(max(up))
         if self.d == 0:
-            if self.s2 !=0:
+            if self.s2 ==0:
                 labelstr = 'Primary Linear Hugoniot fit'
             else:
                 labelstr = 'Primary Quadratic Hugoniot fit'
@@ -562,13 +569,15 @@ class Material:
             self.g0=1.
             self.q=1.
         self.hug.garr  = self.g0*np.power((self.rho0*self.hug.varr),self.q) # [-]
-    def MakeMGIsentrope(self,pstart,usemgmodelbool=False):
+    def MakeMGIsentrope(self,pstart,usemgmodelbool=False,impvel=0.):
         """ Calculate the isentrope from pstart on the principal Hugoniot.
+            MakeMGIsentrope(self,pstart,usemgmodelbool=False,impvel=0.)
             Default is to use the Hugoniot for isentrope. Flag uses the Mie-Grueneisen model (can be unstable).
             Usage: MakeMGIsentrope(self,pstart,usemgmodelbool=False):
             Uses the same volume and gamma arrays as in the principal Hugoniot.
             Input: EOS_Point object
             Optional boolean to use Hugoniot for the isentrope.
+            Impact velocity to check for symmetric impact cases required for MG model.
             Returns: successful calculation boolean
         """
         MGIsuccess=False
@@ -576,6 +585,10 @@ class Material:
         if len(self.hug.parr) <= 10:
             MGIsuccess=False
             print('MakeMGIsentrope ERROR: need to generate a Hugoniot first.')
+            return MGIsuccess
+        if usemgmodelbool and (impvel==0):
+            MGIsuccess=False
+            print('MakeMGIsentrope ERROR: need to provide the impact velocity.')
             return MGIsuccess
         if not usemgmodelbool:
             self.isen.parr = np.copy(self.hug.parr)
@@ -607,12 +620,19 @@ class Material:
         for i in range(istart-1,-1,-1):
             if i == istart-1:
                 dv = (self.isen.varr[i]-pstart.v)
-                if dv == 0:
+                print('istart down dv, startup = ',dv,pstart.up,self.isen.uparr[istart])
+                # check for roundoff errors for symmetric impact
+                print('impvel, up/impvel', impvel, ((2*pstart.up/impvel)))
+                if (dv <= 0) or ((abs(2*pstart.up/impvel)-1)<1.e-5): 
+                    # sometimes dv is a very tiny number; not catching positive tiny right now
+                    # up vs impvel check is because there are floating precision problems
                     # case of symmetric impact messing up the math
-                    self.isen.parr[i] = pstart.p
-                    self.isen.earr[i] = pstart.e
-                    self.isen.uparr[i]= pstart.up
-                    self.isen.uparr2[i]= pstart.up
+                    print('symmetric i=',i)
+                    self.isen.parr[i] = np.copy(pstart.p)
+                    self.isen.earr[i] = np.copy(pstart.e)
+                    self.isen.uparr[i]= np.copy(pstart.up)
+                    self.isen.uparr2[i]= np.copy(pstart.up)
+                    print('symm up = ',self.isen.uparr[i],self.isen.uparr2[i])
                 else:
                     self.isen.parr[i] = (self.hug.parr[i]-(self.hug.earr[i]-pstart.e+pstart.p*dv/2.)*(self.hug.garr[i]/self.hug.varr[i])) / (1.-dv*self.hug.garr[i]/self.hug.varr[i]/2.)
                     self.isen.earr[i] = pstart.e-(pstart.p+self.isen.parr[i])*dv/2.
@@ -620,8 +640,10 @@ class Material:
                         # no sqrt of negative numbers
                         self.isen.uparr[i]= pstart.up-(pstart.p-self.isen.parr[i])/np.sqrt(-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i]))
                         self.isen.uparr2[i]= pstart.up-(pstart.p-self.isen.parr[i])/np.sqrt(-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i]))
-            else:
+                        print('what is up with up1, up2 = ',self.isen.uparr[i],self.isen.uparr2[i])
+            else: # not the first step on the release
                 dv = (self.isen.varr[i]-self.isen.varr[i+1])
+                #print('istart down rest dv = ',dv)
                 gov = self.isen.garr[i]/self.isen.varr[i]
                 self.isen.parr[i] = (self.hug.parr[i]-(self.hug.earr[i]-self.isen.earr[i+1]+self.isen.parr[i+1]*dv/2.)*(self.hug.garr[i]/self.hug.varr[i])) / (1.-dv*self.hug.garr[i]/self.hug.varr[i]/2.)
                 self.isen.earr[i] = self.isen.earr[i+1]-(self.isen.parr[i+1]+self.isen.parr[i])*dv/2.
@@ -630,12 +652,25 @@ class Material:
                     # these two equations for Uparr are identical along an isentrope
                     self.isen.uparr[i]= self.isen.uparr[i+1]-(self.isen.parr[i+1]-self.isen.parr[i])/np.sqrt(-(self.isen.parr[i+1]-self.isen.parr[i])/(self.isen.varr[i+1]-self.isen.varr[i]))
                     self.isen.uparr2[i]= self.isen.uparr2[i+1]-np.sqrt(-(self.isen.parr[i+1]-self.isen.parr[i])*(self.isen.varr[i+1]-self.isen.varr[i]))
+                    #print('down side i, up1, up2, dv = ',i,self.isen.uparr[i],self.isen.uparr2[i],dv)
+                else:
+                    self.isen.uparr[i]= self.isen.uparr[i+1]
+                    self.isen.uparr2[i]= self.isen.uparr2[i+1]
+                    print('check negative i up1 up2 dv = ',i,self.isen.uparr[i],self.isen.uparr2[i],dv)
+
             #print(i,dv,self.isen.parr[i]/1.e9,self.isen.uparr[i]/1.e3,self.isen.earr[i])
         # calc for greater volumes for plotting purposes
         for i in range(istart,len(self.hug.parr)):
             if i == istart:
                 dv = (pstart.v-self.isen.varr[i]) # check this!
-                if dv==0:
+                print('istart up dv = ',i,dv)
+                print('upside impvel, up/impvel', impvel, ((2*pstart.up/impvel)))
+#                if dv<=0: # sometimes a very tiny number; not catching positive tiny right now
+                if (dv <= 0) or ((abs(2*pstart.up/impvel)-1)<1.e-5): 
+                    # sometimes dv is a very tiny number; not catching positive tiny right now
+                    # up vs impvel check is because there are floating precision problems
+                    # case of symmetric impact messing up the math
+                    print('symmetric i=',i)
                     # symmetric case check
                     self.isen.parr[i] = pstart.p
                     self.isen.earr[i] = pstart.e
@@ -650,8 +685,14 @@ class Material:
                         self.isen.uparr2[i]= pstart.up-(pstart.p-self.isen.parr[i])/np.sqrt(-(pstart.p-self.isen.parr[i])/(pstart.v-self.isen.varr[i]))
             else:
                 dv = -(self.isen.varr[i]-self.isen.varr[i-1])
+                #print('istart up rest dv = ',i,dv)
                 self.isen.parr[i] = (self.hug.parr[i]-(self.hug.earr[i]-self.isen.earr[i-1]+self.isen.parr[i-1]*dv/2.)*(self.hug.garr[i]/self.hug.varr[i])) / (1.-dv*self.hug.garr[i]/self.hug.varr[i]/2.)
                 self.isen.earr[i] = self.isen.earr[i-1]+(self.isen.parr[i-1]+self.isen.parr[i])*dv/2.
+#                if ((self.isen.parr[i-1]-self.isen.parr[i])/(self.isen.varr[i-1]-self.isen.varr[i])) > 0:
+#                    # no sqrt of negative numbers
+#                    # these two equations for Uparr are identical along an isentrope
+#                    self.isen.uparr[i]= self.isen.uparr[i-1]-(self.isen.parr[i-1]-self.isen.parr[i])/np.sqrt((self.isen.parr[i-1]-self.isen.parr[i])/(self.isen.varr[i-1]-self.isen.varr[i]))
+#                    self.isen.uparr2[i]= self.isen.uparr2[i-1]+np.sqrt((self.isen.parr[i-1]-self.isen.parr[i])*(self.isen.varr[i-1]-self.isen.varr[i]))
                 if (-(self.isen.parr[i-1]-self.isen.parr[i])/(self.isen.varr[i-1]-self.isen.varr[i])) > 0:
                     # no sqrt of negative numbers
                     # these two equations for Uparr are identical along an isentrope
@@ -660,6 +701,7 @@ class Material:
                 else:
                     # MG model is failing at higher pressures; this happens all the time so don't call it a fail
                     # but instead fill the upper parts of the isentrope with NaNs
+                    print('up side negative sqrt nans i, up(i-1)=',i, self.isen.uparr[i-1])
                     self.isen.parr[i::] = np.nan
                     self.isen.earr[i::] = np.nan
                     self.isen.uparr[i::]= np.nan
@@ -846,7 +888,7 @@ class Material:
             return IM_match_success
         
         # mat2.IM_match(mat3,pstart=mat2.im1) calculates reshock/release from mat2 into mat
-        if (pstart!=0) and (vel==0):
+        if (pstart!=0):
            # This is a target pair of materials mata.im1 release/reshock into matb initially at rest & 0 pressure
             matbhug_patup = np.interp(self.im1.up,matb.hug.uparr,matb.hug.parr) # monotonic increasing density
             print('matbhug_patup (GPa) = ',matbhug_patup/1.e9)
@@ -854,7 +896,8 @@ class Material:
                 # reshock mata into matb
                 reshock_success = self.MakeReshockHug(self.im1,usemgmodelbool=usemgmodelbool)
                 print('RESHOCK SUCCESS = ',reshock_success)
-                res_reshock = Intersection(matb.hug.uparr,matb.hug.parr,self.reshock.uparr,self.reshock.parr)
+                #self.reshock.uparr is decreasing
+                res_reshock = Intersection(matb.hug.uparr,matb.hug.parr,np.flip(self.reshock.uparr),np.flip(self.reshock.parr))
                 #plt.plot(matb.hug.uparr,matb.hug.parr)
                 #plt.plot(self.reshock.uparr,self.reshock.parr))
                 print('res_reshock = ',res_reshock[0],res_reshock[1]/1.e9,len(res_reshock))
@@ -864,8 +907,9 @@ class Material:
                     #    print('CHECK res_reshock vel,up,P= '+str(vel)+' '+str(res_reshock[0][0])+' '+str(res_reshock[1][0]/1.e9)+'\n')
                     self.im2.up=res_reshock[0][0] # m/s
                     self.im2.p=res_reshock[1][0] # Pa
-                    self.im2.v=1./(np.interp(res_reshock[0],self.reshock.uparr,1./self.reshock.varr)[0]) # assumes f is monotonic and increasing
-                    self.im2.e=np.interp(res_reshock[0],self.reshock.uparr,self.reshock.earr)[0] # assumes f is monotonic and increasing
+                    # reshock up array is decreasing, so flip
+                    self.im2.v=1./(np.interp(res_reshock[0],np.flip(self.reshock.uparr),1./np.flip(self.reshock.varr))[0]) # assumes f is monotonic and increasing
+                    self.im2.e=np.interp(res_reshock[0],np.flip(self.reshock.uparr),np.flip(self.reshock.earr))[0] # assumes f is monotonic and increasing
                     matb.im1.up=res_reshock[0][0]
                     matb.im1.p=res_reshock[1][0]
                     matb.im1.v=1./(np.interp(res_reshock[0],matb.hug.uparr,1./matb.hug.varr)[0]) # assumes f is monotonic and increasing
@@ -889,7 +933,7 @@ class Material:
                     return IM_match_success
             else:
                 # release mata into matb
-                isen_success = self.MakeMGIsentrope(self.im1,usemgmodelbool=usemgmodelbool)
+                isen_success = self.MakeMGIsentrope(self.im1,usemgmodelbool=usemgmodelbool,impvel=vel)
                 print('ISEN SUCCESS = ',isen_success)
                 # find intersection between mata isentrope and matb Hugoniot
                 ind = np.where((self.isen.parr > 0))[0]
@@ -903,8 +947,8 @@ class Material:
                     self.im2.up=res_release[0][0] # m/s
                     self.im2.p=res_release[1][0] # Pa
                     ind = np.where(self.isen.varr > 0)[0]
-                    self.im2.v=1./(np.interp(res_release[0],self.isen.uparr[ind],1./self.isen.varr[ind])[0]) # assumes f is monotonic and increasing
-                    self.im2.e=np.interp(res_release[0],self.isen.uparr,self.isen.earr)[0] # assumes f is monotonic and increasing
+                    self.im2.v=1./(np.interp(res_release[0],2*self.im1.up-self.isen.uparr[ind],1./self.isen.varr[ind])[0]) # assumes f is monotonic and increasing
+                    self.im2.e=np.interp(res_release[0],2*self.im1.up-self.isen.uparr,self.isen.earr)[0] # assumes f is monotonic and increasing
                     matb.im1.up=res_release[0][0]
                     matb.im1.p=res_release[1][0]
                     matb.im1.v=1./(np.interp(res_release[0],matb.hug.uparr,1./matb.hug.varr)[0]) # assumes f is monotonic and increasing
@@ -934,7 +978,10 @@ def ClStr(value):
         Usage: ClStr(value): 
         Output: (str(round(value*100)/100.))
     """
-    return(str(round(value*100)/100.))
+    if np.isnan(value):
+        return '0'
+    else:
+        return(str(round(value*100)/100.))
 
 def ReadMaterials(matfilename='materials-data.csv'):
     """Reads in materials data CSV file and converts to mks. 

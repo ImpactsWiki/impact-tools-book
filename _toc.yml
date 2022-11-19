@@ -11,6 +11,7 @@ parts:
     - file: im/manual
     - file: im/materials
     - file: im/reproducibility
+    - file: im/ihed-mats-all
   - caption: Other Tools
     chapters:
     - file: crater-scaling
