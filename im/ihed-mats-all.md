@@ -1,5 +1,7 @@
 # IHED Database Listing
-
+Institute of High Temperatures Shock Wave Database: <a href="http://www.ihed.ras.ru/rusbank/" target="_blank">http://www.ihed.ras.ru/rusbank/</a><p>
+Material names and ID numbers retrieved on 11/19/2022.<p>
+<p>
 ID Material name, density<br>
 1 AMC alloy, R0 =  2.730 g/cc<br>
 2 Al-Mg alloy AMG-6, R0 =  2.640 g/cc<br>

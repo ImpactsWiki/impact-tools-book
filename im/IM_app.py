@@ -652,6 +652,8 @@ def IM_app(webappbool=False):
         matihed.rho0 = matihed.ihed.rho0
         matihed.g0  = wg0ihed.value
         matihed.q  = wqihed.value
+        matihed.uplow = min(uparr[ind])
+        matihed.uphigh = max(uparr[ind])
         return fig
         
     wfitihedbutton.on_click(on_fitihedbutton_clicked)
@@ -672,6 +674,8 @@ def IM_app(webappbool=False):
         newmatdata.iloc[:,imat.d] = matihed.d
         newmatdata.iloc[:,imat.g0] = matihed.g0
         newmatdata.iloc[:,imat.q] = matihed.q
+        newmatdata.iloc[:,imat.uplow] = matihed.uplow
+        newmatdata.iloc[:,imat.uphigh] = matihed.uphigh
         newmatdata.iloc[:,imat.ihed] = matihed.ihed.id
         newmatdata.iloc[:,imat.note] = 'IM Tool IHED Fit and Add'
         dt = datetime.now()        
@@ -701,21 +705,23 @@ def IM_app(webappbool=False):
     # author into at bottom of app
     wauthortext = pn.widgets.StaticText(value='v1.2.0 &#169; 2022 S. T. Stewart, Planetary Impacts Community Wiki')
 
+    #-----------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # collect the various parts of the web app
     wtop_pane = pn.pane.PNG('PetaviusLangrenus_Poupeau_3000.png',link_url="https://impacts.wiki",sizing_mode="scale_width")
     wplotcolumn = pn.Column(wplot,winfo,sizing_mode="scale_width")
     wmain_pane = pn.Row(wcolumn1,wplotcolumn,sizing_mode="scale_width")
     wmatdata_pane = pn.Card(wdf_widget, title="Materials Database", sizing_mode='scale_width', collapsed=True)
     waddmat_pane = pn.Card(wnewparams, title="Add or Remove Material", sizing_mode='scale_width', collapsed=True)
-    wquickaddihed_pane = pn.Card(waddihed_column, title="Quick Fit and Add IHED Material", sizing_mode='scale_width', collapsed=True)
-
-    # ability to plot Hugoniot expressions with IHED data coming.....
     wplot_mat_pane = pn.Card(wplot_mat, title="Plot Material", sizing_mode='scale_width', collapsed=True)    
+    wquickaddihed_pane = pn.Card(waddihed_column, title="Quick Fit and Add IHED Material", sizing_mode='scale_width', collapsed=True)
     wcombo_pane = pn.Column(wtop_pane,wmain_pane,wbottomtext,wmatdata_pane,waddmat_pane,wplot_mat_pane,wquickaddihed_pane,pn.layout.Divider(),wauthortext,width=1200,sizing_mode="scale_width")
     # final combined app 
     #wcombo_pane = pn.Column(wtop_pane,wmain_pane,wbottomtext,wmatdata_pane,waddmat_pane,pn.layout.Divider(),wauthortext,width=1200,sizing_mode="scale_width")
     
     return wcombo_pane
+    #-----------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
 
 ## this function creates a panel app that can be run as a standalone app in a web browser using
 ## IM_app(matdata,imat)
