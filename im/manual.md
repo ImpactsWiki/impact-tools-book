@@ -78,11 +78,37 @@ The default material database file is named <i>materials-data.csv</i>. The mater
 
 The database is in km/s for velocities and g/cm$^3$ for density. These parameters are converted to mks and all calculations are done in mks. The parameter uncertainties are not used at this time and are placeholders for future error propagation.
 
-## Add or Remove Materials Panel
-The user can add new materials on-the-fly in the parameter entry panel in either the web app or the 
-Alternatively, when running the Jupyter notebook, you can replace the <i>materials-data.csv</i> file with your own database.
+## Summary of Features
 
-Materials can also be removed from the database. 
+```{figure} ./Screenshot.png
+---
+width: 800px
+name: screenshot
+---
+Screenshot of the main panel in the IM Tool.
+```
+
+The interactive app calculates the shock propagation from a flyer plate impact onto one to three target material layers. The tool is distributed with a small material database that can be easily expanded on the fly using the IHED shock database or with a user-defined material.
+
+Features include:
+* Adding IHED shock Hugoniot points to IM solution figure, useful to verify 
+* Option to locally store IHED Hugoniot data for faster loading
+* Option to switch to Mie-Gr&uuml;neisen model (default is Hugoniots for release and reshock)
+* Full EOS state solution is provided for each impedance match pair (printed below the plot)
+* Control of plot pressure-particle velocity limits
+* Saving plot as PDF in Jupyter notebook version. When running in Google CoLab, the image file is saved in the Google directory and can be downloaded from there to your local computer. In the web app, right click to save raster image file; there is no option for a PDF file.
+
+In the bottom toggle panels, there are 4 features:
+* Viewing the materials database
+* Manually adding or removing a material from the database.
+* Plotting a material's $U_S-u_p$ Hugoniot with the IHED shock data.
+* Quickly fitting IHED shock data and adding a material to the database. Enter a short name for the dropdown menus and the IHED substance number (<a href="https://impactswiki.net/impact-tools-book/im/ihed-mats-all.html" target="_blank">full list of materials</a>).
+
+When running in a Jupyter notebook, the materials database can be replaced with a user's customized database. The default file name is <i>materials-data.csv</i>.
+
+The full code is available on GitHub:
+* In the Impact Tools Book: https://github.com/ImpactsWiki/impact-tools-book
+* In the stand-alone app: https://github.com/ImpactsWiki/impedance-match-app (The app uses smaller arrays for the Hugoniots to conform to server memory limits.)
 
 ## Built-in Functions
 The IM_module contains several functions to plot and fit Hugoniot data. The material models are modular for future expansion to different forms for the equation of state (e.g., functions for the quartz standard, ANEOS models, and tabulated EOS). Hence, the program numerically solves for the intersection points at each material interface.

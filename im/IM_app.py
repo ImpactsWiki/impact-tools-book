@@ -22,6 +22,7 @@ def IM_app(webappbool=False):
         v1.0.3 - 11/15/22 STS auto-resize the plot; added panel to add a new material
         v1.1.0 - 11/19/22 STS rewrote the IM match into a function and cleaned up error messaging
         v1.2.0 - 11/20/22 STS added quick fit and add IHED material
+        v1.2.1 - 11/22/22 STS webappbool flag for Hugoniot array lengths
     """
     #========================================================
     # WIDGET SETTINGS & CUSTOMIZATIONS
@@ -114,7 +115,7 @@ def IM_app(webappbool=False):
         wcolumn1 = pn.Column('## Shock Impedance Match Tool\nSelect 2 or more materials and impact velocity<br>Changing impact velocity updates the plot.', wmat1, wmat2, wmat3, wmat4, wvel, wshowdata, wuselocaldata, wusemgmodel, wpmax, wupmax,wsaveimage, width=menuwidth)
 
     @pn.depends(vel=wvel,usemgmodel=wusemgmodel,showdata=wshowdata,pmax=wpmax,upmax=wupmax)
-    def match_and_plot(vel,usemgmodel,showdata,pmax,upmax): 
+    def match_and_plot(vel,usemgmodel,showdata,pmax,upmax,webappbool=webappbool): 
         # usemgmodel and showdata and pmax are function parameters to trigger redraw of plot
         # the code below accesses the widget values directly
         vel = vel*1.e3 # put impact velocity in m/s
@@ -146,7 +147,11 @@ def IM_app(webappbool=False):
             #
             # generic settings -- increase for MG model and low density materials if needed below
             uparr_factor = 2. # make up arrays up to impvel_factor*vel 
-            uparr_length = 2000 # number of points (resolution) of the up array
+            if webappbool:
+                uparr_length = 500 # small memory limit for web app
+            else:
+                uparr_length = 2000
+            #uparr_length = 2000 # number of points (resolution) of the up array
             upgeneral = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
 
             # INITIALIZE MATERIALS FROM DROPDOWN MENUS
@@ -158,7 +163,11 @@ def IM_app(webappbool=False):
                 if wusemgmodel.value and (mat1.rho0 < 5000):
                     # if using MG model, increase the length of the particle velocity array
                     uparr_factor = 5. # make up arrays up to impvel_factor*vel 
-                    uparr_length = 5000. # number of points (resolution) of the up array
+                    if webappbool:
+                        uparr_length = 1000 # small memory limit for web app
+                    else:
+                        uparr_length = 5000
+                    #uparr_length = 5000. # number of points (resolution) of the up array
                     upmat1 = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
                 else:
                     upmat1 = np.copy(upgeneral) # each material is an independent set of arrays
@@ -177,7 +186,10 @@ def IM_app(webappbool=False):
                 if wusemgmodel.value and (mat2.rho0 < 5000):
                     # if using MG model, increase the length of the particle velocity array
                     uparr_factor = 5. # make up arrays up to impvel_factor*vel 
-                    uparr_length = 5000. # number of points (resolution) of the up array
+                    if webappbool:
+                        uparr_length = 1000 # small memory limit for web app
+                    else:
+                        uparr_length = 5000
                     upmat2 = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
                 else:
                     upmat2 = np.copy(upgeneral)
@@ -196,7 +208,10 @@ def IM_app(webappbool=False):
                 if wusemgmodel.value and (mat3.rho0 < 5000):
                     # if using MG model, increase the length of the particle velocity array
                     uparr_factor = 5. # make up arrays up to impvel_factor*vel 
-                    uparr_length = 5000. # number of points (resolution) of the up array
+                    if webappbool:
+                        uparr_length = 1000 # small memory limit for web app
+                    else:
+                        uparr_length = 5000
                     upmat3 = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
                 else:
                     upmat3 = np.copy(upgeneral)
@@ -219,7 +234,10 @@ def IM_app(webappbool=False):
                 if wusemgmodel.value and (mat4.rho0 < 5000):
                     # if using MG model, increase the length of the particle velocity array
                     uparr_factor = 5. # make up arrays up to impvel_factor*vel 
-                    uparr_length = 5000. # number of points (resolution) of the up array
+                    if webappbool:
+                        uparr_length = 1000 # small memory limit for web app
+                    else:
+                        uparr_length = 5000
                     upmat4 = np.arange(0,uparr_length+1)/uparr_length*vel*uparr_factor # m/s
                 else:
                     upmat4 = np.copy(upgeneral)
@@ -372,6 +390,7 @@ def IM_app(webappbool=False):
                 userinfostr = userinfostr + ' Mie-Grueneisen model for reshock and release.'
             else:
                 userinfostr = userinfostr + ' Hugoniot for reshock and release.'
+            #userinfostr = userinfostr + ' '+str(len(mat1.hug.uparr))+' '+str(len(mat2.hug.uparr))+' '
             winfo.value = '<p>Impact velocity '+IM.ClStr(vel/1.e3)+' (km/s).'+userinfostr+string_IM_res+'<p>IM Tool v'+IM.__version__
             plt.close(fig)
             return fig
@@ -703,7 +722,7 @@ def IM_app(webappbool=False):
     #-----------------------------------------------------------------------------
 
     # author into at bottom of app
-    wauthortext = pn.widgets.StaticText(value='v1.2.0 &#169; 2022 S. T. Stewart, Planetary Impacts Community Wiki')
+    wauthortext = pn.widgets.StaticText(value='v1.2.1 &#169; 2022 S. T. Stewart, Planetary Impacts Community Wiki')
 
     #-----------------------------------------------------------------------------
     #-----------------------------------------------------------------------------
