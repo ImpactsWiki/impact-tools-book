@@ -19,7 +19,7 @@ This is a one-dimensional shock impedance matching calculator. The program is wr
 
 The impedance match solution is the unique intersection point defined by the designated impact velocity and each material's shock Hugoniot. The solution provides the state in each material that satisfies continuity in pressure and particle velocity at the interface. In subsequent layers, the shock/reshock Hugoniots and/or release isentropes define the unique states that are continuous in pressure and particle velocity at each interface. 
 
-The tool includes the ability to plot, fit and add data from the online Shock Wave Database at http://www.ihed.ras.ru/rusbank/ ({cite}`Levashov2004`). 
+The tool includes the ability to plot, fit and add data from the online Shock Wave Database at http://www.ihed.ras.ru/rusbank/ {cite}`Levashov2004`. 
 
 ## Quick Start
 The IM Tool can be run in three different ways:
@@ -108,6 +108,8 @@ $$
 
 The options for the form for the Gr&uuml;neisen parameter will be expanded as new equation of state options are developed.
 
+A word of caution: these simple equations for the shock Hugoniot and the Gr&uuml;neisen parameter are unlikely to be thermodynamically self-consistent over wide ranges of volume. Beware using the Mie-Gr&uuml;neisen model over wide ranges of pressure and density. Non-physical results will be obtained with equations that are not self-consistent.
+
 The Mie-Gr&uuml;neisen equation of state defines a thermal pressure term, $P(V,E)$, at specific volume $V$ and specific internal energy $E$ referenced to a known state at $V$, which in this case is the principal shock Hugoniot with pressure $P_H(V)$ and specific internal energy $E_H(V)$. Then the thermal pressure term is given by 
 
 $$ 
@@ -160,7 +162,7 @@ Substitute Equation 8 into 9 to find solutions that describe a shock from $s_1$ 
 
 $$
 P_{RS}(V_2,E_2) &  = \frac{\gamma(V_2)}{V_2}\left[E_{RS}(V_2)-E_0\right] + P_H(V_2)\left\{ 1- \frac{\gamma(V_2)}{2V_2}\left[V_0-V_2\right] \right\}, \\
-P_{RS}(V_2)     & = \frac{P_H(V_1)+ \left[ P_H(V_2) - P_H(V_1) \right]\frac{\gamma(V_2)}{2V_2} \left[V_0-V_2\right]}{1-\frac{\gamma(V)}{V_2}  \left[ V_1-V_2 \right]} (10)
+P_{RS}(V_2)     & = \frac{P_H(V_1)+ \left[ P_H(V_2) - P_H(V_1) \right]\frac{\gamma(V_2)}{2V_2} \left[V_0-V_2\right]}{1-\frac{\gamma(V_2)}{2 V_2}  \left[ V_1-V_2 \right]} (10)
 $$
 
 The R-H equations provide the corresponding solutions for the changes in specific energy and particle velocity, $u_p$, from $s_1$ to $s_2$:
@@ -169,6 +171,15 @@ $$
 E_{RS}(V_2) & = E_H(V_1) + \frac{P_H(V_1) + P_{RS}(V_2)}{2} \left[V_1-V_2\right], \\ 
 u_{p,RS}(V_2) & = u_{p,H}(V_1) - \sqrt{ \left[P_{RS}(V_2)-P_H(V_1)\right] \left[V_1-V_2\right]}. 
 $$
+
+```{figure} ./Manual-fig.png
+---
+height: 400px
+name: Alcurves
+---
+Example principal Hugoniot, isentrope and reshock Hugoniot for Aluminium 6061.
+```
+
 
 ### Release Isentrope
 
@@ -201,6 +212,8 @@ u_{p,S}(V) & = u_{p,H}(V_1) - \int_{P_H(V_1)}^{P_S(V)} \frac{dP}{\sqrt{- \left[ 
 $$
 
 which is also calculated iteratively with $\Delta V$.
+
+As shown in {numref}`Alcurves`, the reshock Hugoniot is very close to an isentrope passing through state $s_1$.
 
 ## Calculating Intersections
 
