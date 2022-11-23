@@ -250,7 +250,7 @@ To keep the code modular, the intersections between Hugoniots, reshock Hugoniots
 
 To launch the [](IM_Tool) in the Google Colaboratory cloud computing environment:
 
-1. Launch Colab from the rocket icon at the top of the [](IM_Tool): page
+1. Launch Colab from the rocket icon at the top of the [](IM_Tool) page
 2. Log into Google if you are not automatically logged in; you are in the cloud-based Google Colaboratory Jupyter Lab environment.
 3. In the top menu bar, select Runtime --> Run all
 4. Google will pop up "Warning: This notebook was not authored by Google." Select Run anyway. The python code is copied from the GitHub site that is linked to this Jupyter Book.
