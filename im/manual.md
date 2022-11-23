@@ -260,3 +260,10 @@ To launch the [](IM_Tool) in the Google Colaboratory cloud computing environment
 8. You can upload a personal materials database file to replace the default file. Select menu Runtime --> Restart and run all. Then the material menus will update to reflect the new database. Note that you must restart and run all if you make any changes to the IM_module.py or IM_app.py files.
 
 Learn more at <a href="https://colab.research.google.com/">Google's introduction to Colaboratory</a>.
+
+## Running the App in Binder
+
+The steps are similar to running in Colab except the menu is named 'Run'. Select Run -> Run all cells.
+
+Binder takes a little longer to launch than Colab. You may need to turn off any ad blockers in your browser.
+
