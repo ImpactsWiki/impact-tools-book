@@ -245,3 +245,18 @@ As shown in {numref}`Alcurves`, the reshock Hugoniot is very close to an isentro
 
 To keep the code modular, the intersections between Hugoniots, reshock Hugoniots, and release isentropes are calculated numerically using the function from <a href=" https://github.com/sukhbinder/intersection/" target="_blank"> https://github.com/sukhbinder/intersection/</a>.
 
+(New_CoLab)=
+## 8 Easy Steps to Running the App in Colab
+
+To launch the [](IM_Tool) in the Google Colaboratory cloud computing environment:
+
+1. Launch Colab from the rocket icon at the top of the [](IM_Tool): page
+2. Log into Google if you are not automatically logged in; you are in the cloud-based Google Colaboratory Jupyter Lab environment.
+3. In the top menu bar, select Runtime --> Run all
+4. Google will pop up "Warning: This notebook was not authored by Google." Select Run anyway. The python code is copied from the GitHub site that is linked to this Jupyter Book.
+5. The notebook runs two code cells. The first cell imports general python modules. The second code cell copies files from GitHub and imports the IM Tool code module and app files. Click on the folder icon on the left: there are now several files associated with the app, including the materials-data.csv file.
+6. The widget at the bottom of the page should be interactive at this point. Select two materials and an impact velocity and an impedance match plot will be generated.
+7. Saving the plot using the 'Save IM Plot' button puts the file in the Google Colab cloud directory. You should see the file in the same list as materials-data.csv. You can download the file by clicking on the 3 vertical dots next to the file name. 
+8. You can upload a personal materials database file to replace the default file. Select menu Runtime --> Restart and run all. Then the material menus will update to reflect the new database. Note that you must restart and run all if you make any changes to the IM_module.py or IM_app.py files.
+
+Learn more at <a href="https://colab.research.google.com/">Google's introduction to Colaboratory</a>.
