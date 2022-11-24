@@ -23,11 +23,17 @@ The tool includes the ability to plot, fit and add data from the online Shock Wa
 
 ## Quick Start
 The IM Tool can be run in three different ways:
-* As a web app on Heroku (response can be a little slow): <a href="https://impedance-match-app.herokuapp.com/" target="_blank">impedance-match-app.herokuapp.com</a>
 
-* From the Jupyter Book page {ref}`IM_Tool`: Launch CoLab; run the notebook
+* As a stand-alone application in a web browser. Two choices:
 
-* On your local computer: <a href="https://github.com/ImpactsWiki/impact-tools-book" target="_blank">Download the repo</a> and run the Jupyter Notebook locally
+    * Render: https://impedance-match-app.onrender.com/
+    * Heroku: https://impedance-match-app.herokuapp.com/ 
+
+    These interfaces are ideal for people who are not familiar with Jupyter notebooks. These are free trial accounts so the initial spin up takes a minute. These apps are limited in memory and the number of simultaneous users.
+
+* From the Jupyter Book page {ref}`IM_Tool`: Launch Colab from rocket icon at the top of the page; menu Runtime --> Run all. This is the fastest way to use the app. New to Colab? [](New_CoLab) Binder also works but takes longer to load.
+
+* On your local computer: <a href="https://github.com/ImpactsWiki/impact-tools-book" target="_blank">Download the repo</a> and run the Jupyter Notebook locally. This requires installing python and Jupyter-lab.
 
 Select 2, 3, or 4 materials.<br>
 Enter impact velocity for material 1 onto material 2.<br>
